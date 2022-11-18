@@ -1,0 +1,481 @@
+---
+title: "Intermediate Statistics"
+author: "Anh Thu"
+date: "2022-11-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+ # Import library
+library(readr)
+library(plyr)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(tidyverse)
+library(finalfit)
+library(survival)
+library(survminer)
+library(ggfortify)
+```
+
+## Import dataset
+```{r}
+effec1_quest_compil <- read_csv("Datasets/effec1.quest.compil.csv",locale = locale("fr"), show_col_type = FALSE)
+effec2_quest_compil <- read_csv("Datasets/effec2.quest.compil.csv", locale = locale("fr"),show_col_type = FALSE)
+effec3_quest_compil <- read_csv("Datasets/effec3.quest.compil.csv", locale = locale("fr"),show_col_type = FALSE)
+usages_effec1 <- read_csv("Datasets/usages.effec1.csv", locale = locale("fr"), show_col_type = FALSE)
+usages_effec2 <- read_csv("Datasets/usages.effec2.csv", locale = locale("fr"), show_col_type = FALSE)
+usages_effec3 <- read_csv("Datasets/usages.effec3.csv", locale = locale("fr"), show_col_type = FALSE)
+```
+
+You can also embed plots, for example:
+
+```{r echo = FALSE}
+# Combine
+UE1 <- join_all(list(effec1_quest_compil,usages_effec1), type = 'full', by = "Student_ID")
+UE2 <- join_all(list(effec2_quest_compil,usages_effec2), type = "full", by = "Student_ID")
+UE3 <- join_all(list(effec3_quest_compil,usages_effec3), type = "full", by = "Student_ID")
+```
+
+```{r}
+usages_effec1 <- distinct(usages_effec1)
+usages_effec1 <- usages_effec1  %>% mutate(Engagement_Level = case_when(last.quizz == 5 & last.video > 30 &
+                                     Assignment.bin == 1 ~ "Completers", 
+                                     last.quizz > 0 | Assignment.bin == 1 ~ "Disengaging Learners", 
+                                     last.video / 35 > 0.1 ~ " Auditing Learners",
+                                    TRUE ~ "Bystanders"))
+usages_effec2 <- usages_effec2 %>% mutate(Engagement_Level = case_when(Exam.bin == 1 & 
+                                                        Assignment.bin == 1 ~ "Completers",
+                                 last.quizz > 0 | Assignment.bin == 1 ~ "Disengaging Learners",
+                                 last.video / 35 > 0.1 ~ " Auditing Learners",
+                                 TRUE ~ "Bystanders"))
+usages_effec3 <- usages_effec3 %>% mutate(Engagement_Level = case_when(Exam.bin == 1 & 
+                                                        Assignment.bin == 1 ~ "Completers",
+                                 last.quizz > 0 | Assignment.bin == 1 ~ "Disengaging Learners",
+                                 last.video / 35 > 0.1 ~ " Auditing Learners",
+                                 TRUE ~ "Bystanders"))
+```
+
+```{r}
+Engagement_Level_table1 <- count(usages_effec1, "Engagement_Level")
+Engagement_Level_table1
+```
+```{r}
+iteration1<- c(2455,2219,587,2704)
+lbls1 <- c("Completers","Disengaging Learners", "Auditing Learners","Bystanders")
+pct1 <- round(iteration1/sum(iteration1)*100, digits=2)
+lbls1 <- paste(lbls1, pct1)
+lbls1 <- paste(lbls1,"%",sep="")
+pie(iteration1, labels = lbls1, main="Pie Chart of Level of Engagement in Iteration 1")
+```
+
+```{r}
+c2 <- count(usages_effec2, "Engagement_Level")
+c2
+```
+
+
+```{r}
+iteration2<- c(878,1094,302,1524)
+lbls2 <- c("Completers","Disengaging Learners", "Auditing Learners","Bystanders")
+pct2 <- round(iteration2/sum(iteration2)*100, digits=3)
+lbls2 <- paste(lbls2, pct2)
+lbls2 <- paste(lbls2,"%",sep="")
+pie(iteration2, labels = lbls2, main="Pie Chart of Level of Engagement in Iteration 2 ")
+```
+```{r}
+count(usages_effec3, "Engagement_Level")
+```
+
+```{r}
+iteration3<- c(843,953,311,1776)
+lbls3 <- c("Completers","Disengaging Learners", "Auditing Learners","Bystanders")
+pct3 <- round(iteration3/sum(iteration3)*100, digits=3)
+lbls3 <- paste(lbls3, pct3)
+lbls3 <- paste(lbls3,"%",sep="")
+```
+
+
+```{r}
+pie(iteration3, labels = lbls3, main="Pie Chart of Level of Engagement in Iteration 3 ")
+```
+
+
+```{r}
+UE1 <- UE1 %>% mutate(Engagement_Level = case_when(
+                                     Assignment.bin == 1 ~ "Completers", 
+                                     last.quizz > 0 | is.na(Assignment.bin) ~ "Disengaging Learners", 
+                                     last.video / 35 > 0.1 ~ " Auditing Learners",
+                                    TRUE ~ "Bystanders"))
+
+
+UE2 <- UE2 %>% mutate(Engagement_Level = case_when(
+                                     Assignment.bin == 1 ~ "Completers", 
+                                     last.quizz > 0 | is.na(Assignment.bin) ~ "Disengaging Learners", 
+                                     last.video / 35 > 0.1 ~ " Auditing Learners",
+                                    TRUE ~ "Bystanders"))
+UE3 <- UE3 %>% mutate(Engagement_Level = case_when(
+                                     Assignment.bin == 1 ~ "Completers", 
+                                     last.quizz > 0 | is.na(Assignment.bin) ~ "Disengaging Learners", 
+                                     last.video / 35 > 0.1 ~ " Auditing Learners",
+                                    TRUE ~ "Bystanders"))
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+UE_all <- rbind.fill(UE1,UE2, UE3)
+Table1 <- table(UE_all$Diploma,UE_all$Engagement_Level)
+Table1
+```
+```{r}
+Table2 <- table(UE_all$Exp.MOOC, UE_all$Engagement_Level)
+print(Table2)
+```
+
+```{r}
+colours <- c("red", "orchid", "light blue", "light yellow", "light green","pink","salmon","seagreen")
+counts <- table(UE_all$Diploma, UE_all$Engagement_Level)
+barplot(as.matrix(counts), beside = TRUE, main="Engagement Level by Diploma", ylab = "Engagement Level", cex.lab =0.7, col = colours)
+legend("topleft", c("Bac ou equivalent", "Bac+2 (Deug, IUT, BTS, ect)","Bac+2","Bac+3" ,"Bac+5", "Bac+8", "En cours d'obtention du Bac","Pre−bac"))
+```
+
+```{r}
+head(UE_all)
+```
+
+## Linear Model
+
+```{r}
+ countries_HDI <- read_csv("Datasets/countries.HDI.csv", locale = locale(encoding = "ISO-8859-1"),
+                          col_names = c("Country", "HDI", "Index"), show_col_types=FALSE)
+```
+
+## Recode Countries HDI
+
+```{r}
+countries_HDI$HDI[countries_HDI$HDI == "M"] <- "I"
+countries_HDI$HDI[countries_HDI$HDI == "H"] <- "I"
+unique(countries_HDI$HDI)
+```
+
+# Compare the number of views of videos by gender
+
+```{r}
+df <- join_all(list(UE_all, countries_HDI),type = 'full', by = 'Country')
+write.table(df, file = "data.csv",sep = "\t", row.names = T)
+colnames(df)
+```
+
+```{r}
+df$total_views <- rowSums(df[, c( "Prez.sem.1","S1.L1","S1.L2","S1.L3","S1.L4","S1.L5","S1.L6","Prez.sem.2","S2.L1","S2.L2","S2.L3","S2.L4","S2.L5","S2.L6","Prez.sem.3","S3.L1.1","S3.L1.2","S3.L2","S3.L3","S3.L4","S3.L5","Prez.sem.4","S4.L1.1","S4.L1.2","S4.L2","S4.L3","S4.L4","S4.L5","Prez.sem.5","S5.L1.1","S5.L1.2","S5.L2","S5.L3","S5.L4","S5.L5")])
+df$percent_video <- (df$total_views / 35) *100
+```
+
+# Compare total views by gender
+```{r}
+lm_1 <- lm(total_views~Gender, df)
+lm_1
+```
+
+```{r}
+ ttest <- t.test(total_views~Gender,df)
+ttest
+```
+
+```{r}
+library(stargazer)
+library(broom)
+library(purrr)
+library(xtable)
+```
+
+```{r}
+tab <- map_df(list(ttest), tidy)
+xtable(tab)
+```
+
+```{r}
+ # Create a box-plot
+library(rstatix)
+```
+```{r}
+df.test <- df %>% drop_na(c(Gender, total_views))
+stat <- df.test %>% t_test(total_views ~ Gender,var.equal=TRUE) %>%add_significance()
+bxp <- ggboxplot(df.test, x = "Gender", y = "total_views", ylab = "Viewed videos", xlab ="Gender")
+stat <- stat %>% add_xy_position(x = "Gender")
+bxp + stat_pvalue_manual(stat, tip.length = 0) + labs(subtitle = get_test_label(stat, detailed = TRUE))
+```
+```{r}
+library(xtable)
+anova_1 <- anova(lm_1)
+print(xtable(anova_1))
+```
+
+###Compare total views by HDI
+```{r}
+ lm_2 <- lm(total_views~HDI, df)
+lm_2
+```
+
+# Chi square test Gender & HDI
+```{r}
+chi_1 <- chisq.test(df$Gender, df$HDI)
+chi_1
+```
+## One-way ANOVA
+```{r}
+a1 <- aov(total_views~HDI, df)
+a1
+```
+
+```{r}
+print(xtable(a1))
+```
+
+# Two-way ANOVA
+```{r}
+a3 <-anova(lm(total_views ~ Gender + HDI, data = df))
+a3
+print(xtable(a3))
+```
+
+```{r}
+a4 <- anova(lm(total_views~Gender+HDI+HDI*Gender,df))
+a4
+```
+
+```{r}
+print(xtable(a4))
+```
+```{r}
+summary(a4)
+```
+##Model refinement, pairwise comparison
+```{r}
+model_lm <- lm(total_views~Gender*HDI, df)
+print(xtable(summary(model_lm)))
+```
+```{r}
+step(model_lm,direction = 'forward')
+```
+
+```{r}
+chisq.test(df$Gender,df$HDI,correct=FALSE)
+```
+
+```{r}
+ct <- chisq.test(df$Gender,df$HDI,correct=FALSE)
+library(xtable)
+tab2 <- map_df(list(ct), tidy)
+xtable(tab2)
+```
+
+```{r}
+library("grid"); library("vcd")
+mosaic(~Gender+HDI, df, shade = TRUE, legend = TRUE)
+```
+```{r}
+tk <- TukeyHSD(a1)
+tk
+```
+
+```{r}
+tab3 <- map_df(list(tk), tidy)
+xtable(tab3)
+```
+
+```{r}
+TukeyHSD(aov(total_views ~ Gender + HDI, data = df), "HDI")
+```
+
+```{r}
+pairwise.t.test(df$total_views, df$Gender, p.adj = "none")
+```
+
+```{r}
+pairwise.t.test(df$total_views, df$Gender, p.adj = "bonf")
+```
+
+```{r}
+pairwise.t.test(df$total_views, df$Gender, p.adj = "holm")
+```
+
+```{r}
+TukeyHSD(a1)
+```
+
+```{r}
+df$age <- 2021 - df$birth.year
+df$age_group <- cut(df$age, breaks = seq(0, 100, by = 30))
+table(df$age_group)
+```
+
+```{r}
+a3 <- aov(total_views~age_group, data = df)
+a3
+```
+
+```{r}
+
+TukeyHSD(a3)
+```
+
+```{r}
+df$Gender <- relevel(factor(df$Gender), ref ="une femme")
+```
+
+```{r}
+lr <- glm(Exam.bin~HDI+Gender, data=df)
+lr
+```
+```{r}
+lra <-aov(lr)
+lra
+```
+
+```{r}
+lras <- summary(lra)
+lras
+```
+
+```{r}
+exp(coef(lr))
+```
+```{r}
+ df %>%
+  summary_factorlist("Exam.bin", c("Gender","HDI"),
+  p=TRUE, add_dependent_label=TRUE) -> t1
+```
+
+```{r}
+knitr::kable(t1, row.names=FALSE, align=c("l", "l", "r", "r", "r"))
+```
+
+
+```{r}
+df %>%
+  or_plot("Exam.bin", c("Gender","HDI"), table_text_size=4, title_text_size=14,
+    plot_opts=list(xlab("OR, 95% CI"), theme(axis.title = element_text(size=12))), ref =)
+```
+```{r}
+po <- glm(Exam.bin~CSP.fin+Estimated.hours,df, family="binomial")
+po
+```
+```{r}
+library(gtsummary)
+```
+```{r}
+summary(po)$coefficients
+```
+
+```{r}
+ll <- glm(total_views~Engagement_Level,df, family="poisson")
+ll
+```
+```{r}
+
+exp(coef(po))
+```
+# Survival Analysis
+
+```{r}
+# Load required packages
+library(survival)
+library(survminer)
+library(dplyr)
+```
+
+```{r}
+hist(df$total_views)
+```
+```{r}
+ total_views.dec = quantile(df$total_views, probs = seq(.1, .9, by = .1), na.rm = TRUE)
+df<-df %>%mutate(total_views.decile = ntile(total_views, 10))
+```
+
+```{r}
+df$status.vid=rep(NA, nrow(df))
+  for (i in 1:nrow(df)) {
+  if (is.na(df$total_views.decile[i]<10)) {df$status.vid[i]=1} 
+  if (is.na(df$total_views.decile[i]==10)) {df$status.vid[i]=0} }
+```
+
+```{r}
+df_s <- read.table('data.csv')
+```
+
+```{r}
+#df$status.vid=rep(NA, nrow(df))
+#  for (i in 1:nrow(df)) {
+#  if (is.na(df$total_views.decile[i]<10)) {df$status.vid[i]=1} 
+#  if (is.na(df$total_views.decile[i]==10)) {df$status.vid[i]=0} }
+```
+
+```{r}
+ df_s$n_videos <- rowSums(df_s[, c(
+        "Prez.sem.1","S1.L1","S1.L2","S1.L3","S1.L4","S1.L5","S1.L6","Prez.sem.2","S2.L1","S2.L2","S2.L3","S2.L4","S2.L5","S2.L6","Prez.sem.3","S3.L1.1","S3.L1.2","S3.L2","S3.L3","S3.L4","S3.L5","Prez.sem.4","S4.L1.1","S4.L1.2","S4.L2","S4.L3","S4.L4","S4.L5","Prez.sem.5","S5.L1.1","S5.L1.2","S5.L2","S5.L3","S5.L4","S5.L5")])
+```
+
+```{r}
+df_s$percent_video <- (df_s$n_videos / 35) *100
+n_videos_dec = quantile(df_s$n_videos, probs = seq(.1, .9, by = .1), na.rm = TRUE)
+df_s <-df_s %>%mutate(n.videos.decile = ntile(n_videos, 10))
+df_s$status.vid=rep(NA, nrow(df_s))
+df_s <- df_s %>% mutate(status.vid = ifelse(n.videos.decile < 10, 1, 0))
+df_s$Group <- factor(df_s$Engagement_Level, levels = c("disengage","audit"))
+head(df_s)
+```
+
+
+
+```{r}
+coxph(formula = Surv(n.videos.decile, status.vid) ~ HDI, data = df_s)
+```
+
+```{r}
+survival_HDI <- survfit(Surv(n.videos.decile, status.vid) ~ HDI, data = df_s)
+ggsurvplot(
+  survival_HDI,
+  conf.int = FALSE,
+  surv.median.line = c('hv'),
+  data = df_s,
+  pval = TRUE,
+  pval.method = TRUE,
+  risk.table = FALSE)
+```
+
+
+```{r}
+coxph(formula = Surv(n.videos.decile, status.vid) ~ Group, data = df_s)
+```
+
+
+```{r}
+survival_Group <- survfit(Surv(n.videos.decile, status.vid) ~ Group, data = df_s)
+ggsurvplot(
+  survival_Group,
+  conf.int = FALSE,
+  surv.median.line = c('hv'),
+  data = df_s,
+  pval = TRUE,
+  pval.method = TRUE,
+  risk.table = FALSE)
+```
+
+
